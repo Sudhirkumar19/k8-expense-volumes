@@ -1,0 +1,66 @@
+#config map creating to keep DB_HOST in manifest.yaml and use it in deployment.yaml. This is done to keep the configuration separate from the code and to make it easier to manage.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql
+  namespace: expense
+data:
+  DB_HOST: mysql
+
+
+---
+# backend deployment manifest.yaml. This deployment will create 2 replicas of the backend application and expose it on port 8080. The backend application will use the DB_HOST environment variable to connect to the mysql database.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: expense
+  labels:
+    app: backend
+    tier: api
+    project: expense
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+     app: backend
+    tier: api
+    project: expense
+  template: 
+    metadata:
+      labels:
+        app: backend
+        tier: api
+        project: expense
+    spec:
+      containers:
+      - name: backend
+        image: backend:1.0 # change to your docker hub image and version
+        #ports:
+        #- containerPort: 8080
+        envFrom: 
+        - configMapRef:  # reference to the config map created above to get the DB_HOST environment   variable
+            #name: mysql
+            name: backend
+
+---
+
+# service in manifest.yaml is written in the same namespace as deployment, so it will be created in the same namespace as deployment . service is used to expose the deployment to other pods in the same namespace or to external clients.
+
+kind: Service
+apiVersion: apps/v1
+metadata:
+  name: backend
+  namespace: expense
+spec:
+  selector:
+    app: backend
+    tier: api
+    project: expense
+  ports:
+  - name: backend port
+    protocol: TCP
+    port: 8080 # service port
+    targetport: 8080 # container port defined in deployment
