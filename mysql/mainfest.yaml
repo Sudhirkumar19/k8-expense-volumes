@@ -1,0 +1,90 @@
+# first we have to create headless service for the mysql statefulset to create the dns record for each pod in the statefulset and then we can use the dns record to connect to the mysql database from the backend application.
+
+# so here we keep cluster IP as None to create headless service and then we can use the dns record created by the headless service to connect to the mysql database from the backend application.
+
+kind: Service
+apiVersion: v1
+metadta:
+  name: mysql-headless # for headless service there is no clusterIP
+  namespace: expense
+spec:
+  clusterIP: None # for headless service there is no clusterIP
+  selector:
+    project: expense
+    component: mysql
+    tier: db
+  ports:
+  - protocol: TCP
+    port: 3306 # service port
+    targetport: 3306 # container port defined in the mysql statefulset to expose the mysql database to the backend application 
+
+---
+
+# including headless service we also need to create a normal service to expose the mysql database to the backend application through the cluster IP. So we will create a normal service with cluster IP to expose the mysql database to the backend application and then we will use the cluster IP of this service to connect to the mysql database from the backend application.
+
+# service manifest.yaml. This service will expose the pod created above to the other pods in the same namespace or to external clients.
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: mysql
+  namespace: expense
+spec:
+  
+  selector:
+    project: expense
+    component: mysql
+    tier: db
+  ports:
+  - protocol: TCP
+    port: 3306 # service port
+    targetport: 3306 # container port defined in the mysql statefulset to expose the mysql database to the backend application
+    nodeport: 30007 # nodeport should be in the range of 30000-32767 to expose the service to external clients through the node port. This is optional if you want to expose the service only to other pods in the same namespace then you can remove this line. If you want to expose the service to external clients then you can keep this line and access the service through the node port defined here. You can also use LoadBalancer type service to expose the service to external clients without using node port. In that case you can remove this line and change the type to LoadBalancer.
+
+---
+
+# create statefulset for mysql database. This statefulset will create 3 replicas of the mysql database and expose it on port 3306. The mysql database will use the headless service created above to create the dns record for each pod in the statefulset and then we can use the dns record to connect to the mysql database from the backend application.
+
+# for stateful set we need to create PVC claim to mount the persistent volume to the mysql database. So we will create a PVC claim for each replica of the statefulset and then we will use the PVC claim to mount the persistent volume to the mysql database.
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: expense
+spec:
+  selector:
+    matchLabels:
+      project: expense
+      component: mysql
+      tier: db
+  serviceName: mysql-headless # here serviceName should be same which we have defined in the headless service manifest to create the dns record for each pod in the statefulset
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        project: expense
+        component: mysql
+        tier: db
+    spec:
+      containers:
+      - name: mysql
+        image: sudhirkumarv/mysql:1.0 # change to your docker hub image and version 
+        volumeMounts:
+        - name: mysql
+          mountPath: /var/lib/mysql # here mountPath should be same which we have defined in the mysql statefulset to expose the mysql database to the backend application
+
+# this is PVC definition, directly mentioned below, this will be not there in deployment set
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi # here storage should be less than or equal to the storage defined in the persistent volume above because the claim cannot request more storage than the capacity defined in the PV. If you are using dynamic provisioning then you can define the storage as per your requirement because the PV will be created automatically by kubernetes when the claim is created and it will be bound to the claim based on the storage class name defined in the claim manifest. In that case you need to make sure that the storage defined in the claim manifest is less than or equal to the storage capacity of the EFS volume created in AWS Cloud.
+
+
+# in statefulset it has headless service explicitly attached and for sure PVC , and other than this remaining everything is like deployment manifest. 
+
+#So you can refer the deployment manifest to create the statefulset manifest and just need to add the headless service and PVC claim to the statefulset manifest to create the statefulset for mysql database. The headless service will create the dns record for each pod in the statefulset and then we can use the dns record to connect to the mysql database from the backend application. The PVC claim will create a claim for each replica of the statefulset and then we will use the PVC claim to mount the persistent volume to the mysql database.
