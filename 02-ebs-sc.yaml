@@ -1,0 +1,13 @@
+# create ebs storage class for dynamic provisioning of EBS volumes
+
+# dynamic provisoning of EBS volumes using StorageClass and PersistentVolumeClaim
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: expense-ebs
+  reclaimPolicy: Retain
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer # this will ensure that the volume is provisioned only when the pod is scheduled on the node where the EBS volume is attached. This will avoid the issue of volume provisioning failure due to the volume being provisioned in a different availability zone than the node where the pod is scheduled.
+
+# here in dynamic provisoning it is not required to create PV manually , everrything will be taken care by kubernetes to create the PV and bind it to the PVC . The only thing we need to do is to create the StorageClass and PersistentVolumeClaim manifest files and use the claim in the deployment manifest to mount the volume to the backend application.

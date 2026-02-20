@@ -1,0 +1,9 @@
+# create namespace for the application and volumes
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: expense
+  labels:
+    project: expense
+    environment: dev
