@@ -27,6 +27,14 @@ spec:
         image: frontend:1.0 # change to your docker hub image and version
         #ports:
         #- containerPort: 8080
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          # Always limits is greater than or equal to requests
+          limits:
+            cpu: 100m
+            memory: 128Mi
        
 
 ---
