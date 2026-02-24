@@ -57,3 +57,26 @@ spec:
     protocol: TCP
     port: 80 # service port
     targetport: 80 # container port defined in deployment
+
+# HPA manifest.yaml. This HPA will scale the backend deployment based on the CPU utilization.
+
+# To Autoscale we have to do in K8S, the following conditions should met:
+# 1. Metrics server should be installed in the cluster to get the metrics of the pods.
+# 2. we should mention resources section inside pod
+# 3. Once conditions are met then we have to create the HPA manifest.yaml and apply it to the cluster as below:
+
+# HPA manifest.yaml
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata: 
+  name: frontend
+  namespace: expense
+spec:
+scaleTargetRef:
+  apiVersion: apps/v1
+  kind: Deployment # here we have to mention the kind of the resource which we want to scale, in our case it is deployment
+  name: frontend # here we have to mention the name of the resource which we want to scale
+minRelicas: 1
+maxReplicas: 10
+targetCPUUtilzationPercentage: 50 # here we have to mention the target CPU utilization percentage
+# usually HPA CPU Utilization is set 70% to 75%
